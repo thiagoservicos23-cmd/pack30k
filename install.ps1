@@ -10,26 +10,39 @@ Write-Host "       INICIANDO INSTALADOR STEAMLIVRE" -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "Baixando arquivos necessarios da nuvem. Aguarde..." -ForegroundColor Yellow
 
-# Seu site oficial do Vercel
 $baseUrl = "https://pack30k.vercel.app"
 
+# ATENCAO: Estes nomes devem ser EXATAMENTE iguais ao que esta no GitHub!
 $urlZip = "$baseUrl/STEAMLIVRE.zip"
 $url7zExe = "$baseUrl/7z.exe"
 $url7zDll = "$baseUrl/7z.dll"
 
 try {
-    # Usando BasicParsing para garantir o download bruto
     Invoke-WebRequest -Uri $urlZip -OutFile "$tempDir\STEAMLIVRE.zip" -UseBasicParsing
     Invoke-WebRequest -Uri $url7zExe -OutFile "$tempDir\7z.exe" -UseBasicParsing
     Invoke-WebRequest -Uri $url7zDll -OutFile "$tempDir\7z.dll" -UseBasicParsing
 } catch {
-    Write-Host "Erro ao baixar os arquivos da internet. Verifique sua conexao." -ForegroundColor Red
+    Write-Host "Erro na conexao com o servidor Vercel." -ForegroundColor Red
     Start-Sleep -Seconds 5
     Exit
 }
 
-# Cria o .BAT do instalador
+# PROTECAO: Verifica se o arquivo baixado não é uma pagina de erro 404 disfarçada
+$zipFile = Get-Item "$tempDir\STEAMLIVRE.zip"
+if ($zipFile.Length -lt 50000) {
+    Write-Host ""
+    Write-Host "[ERRO CRITICO] O arquivo ZIP nao foi baixado corretamente!" -ForegroundColor Red
+    Write-Host "Provavel causa: O nome do arquivo no GitHub esta diferente de 'STEAMLIVRE.zip'." -ForegroundColor Yellow
+    Write-Host "O Vercel diferencia letras MAIUSCULAS de minusculas." -ForegroundColor Yellow
+    Write-Host "Va no GitHub e renomeie o arquivo para STEAMLIVRE.zip (tudo maiusculo)." -ForegroundColor Cyan
+    Write-Host "Fechando em 15 segundos..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 15
+    Exit
+}
+
+# Cria o .BAT do instalador (O espaco em branco no topo resolve o bug de vazar o codigo)
 $batCode = @'
+
 @echo off
 setlocal EnableDelayedExpansion
 chcp 65001 >nul
@@ -69,27 +82,19 @@ echo.
 echo  [##########          ] 40%%
 if exist "%temp%\sl_temp" rmdir /s /q "%temp%\sl_temp"
 mkdir "%temp%\sl_temp"
-
-:: REMOVI O MODO SILENCIOSO! Agora voce vai ver se o 7-zip der erro.
-"%EXTRATOR%" x "%ARQUIVO_ZIP%" -p%SENHA_ZIP% -y -o"%temp%\sl_temp"
+"%EXTRATOR%" x "%ARQUIVO_ZIP%" -p%SENHA_ZIP% -y -o"%temp%\sl_temp" -bso0 -bsp0 >nul
 
 if not exist "%temp%\sl_temp\Hid.dll" (
+    call :Header
+    color 0C
     echo.
-    echo  =======================================================
-    echo   [ERRO FATAL NA EXTRACAO]
-    echo  =======================================================
-    echo  Leia a mensagem do 7-Zip logo acima para entender o erro.
-    echo  Possiveis causas:
-    echo  1. O arquivo ZIP baixado esta corrompido (ou eh uma pagina 404).
-    echo  2. A senha esta errada.
-    echo  3. Faltou a DLL do 7-zip.
+    echo  [ERRO FATAL NA EXTRACAO]
+    echo  A senha do ZIP esta incorreta ou o arquivo esta corrompido.
     pause
     exit /b
 )
 
 :: DELAY DE 5 SEGUNDOS APOS EXTRACAO
-echo.
-echo  [SUCESSO] Extracao concluida. Aguarde...
 timeout /t 5 /nobreak >nul
 
 :: PASSO 3: Copiando os arquivos
@@ -154,7 +159,8 @@ echo.
 exit /b
 '@
 
-Set-Content -Path "$tempDir\instalador.bat" -Value $batCode -Encoding UTF8
+# Salva forçando modo Ascii para o CMD não ler caracteres escondidos
+Set-Content -Path "$tempDir\instalador.bat" -Value $batCode -Encoding Ascii
 
 Write-Host "Abrindo tela de instalacao..." -ForegroundColor Green
 Start-Process -FilePath "$tempDir\instalador.bat" -Wait
