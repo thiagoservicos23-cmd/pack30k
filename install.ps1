@@ -10,7 +10,7 @@ Write-Host "       INICIANDO INSTALADOR STEAMLIVRE" -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "Baixando arquivos necessarios da nuvem. Aguarde..." -ForegroundColor Yellow
 
-# Seu site oficial do Vercel já configurado
+# Seu site oficial do Vercel
 $baseUrl = "https://pack30k.vercel.app"
 
 $urlZip = "$baseUrl/STEAMLIVRE.zip"
@@ -18,6 +18,7 @@ $url7zExe = "$baseUrl/7z.exe"
 $url7zDll = "$baseUrl/7z.dll"
 
 try {
+    # Usando BasicParsing para garantir o download bruto
     Invoke-WebRequest -Uri $urlZip -OutFile "$tempDir\STEAMLIVRE.zip" -UseBasicParsing
     Invoke-WebRequest -Uri $url7zExe -OutFile "$tempDir\7z.exe" -UseBasicParsing
     Invoke-WebRequest -Uri $url7zDll -OutFile "$tempDir\7z.dll" -UseBasicParsing
@@ -27,7 +28,7 @@ try {
     Exit
 }
 
-# Cria o .BAT do instalador com a NOVA ORDEM
+# Cria o .BAT do instalador
 $batCode = @'
 @echo off
 setlocal EnableDelayedExpansion
@@ -68,19 +69,27 @@ echo.
 echo  [##########          ] 40%%
 if exist "%temp%\sl_temp" rmdir /s /q "%temp%\sl_temp"
 mkdir "%temp%\sl_temp"
-"%EXTRATOR%" x "%ARQUIVO_ZIP%" -p%SENHA_ZIP% -y -o"%temp%\sl_temp" -bso0 -bsp0 >nul
+
+:: REMOVI O MODO SILENCIOSO! Agora voce vai ver se o 7-zip der erro.
+"%EXTRATOR%" x "%ARQUIVO_ZIP%" -p%SENHA_ZIP% -y -o"%temp%\sl_temp"
 
 if not exist "%temp%\sl_temp\Hid.dll" (
-    call :Header
-    color 0C
     echo.
-    echo  [ERRO FATAL NA EXTRACAO]
-    echo  Verifique a senha ou arquivo corrompido.
+    echo  =======================================================
+    echo   [ERRO FATAL NA EXTRACAO]
+    echo  =======================================================
+    echo  Leia a mensagem do 7-Zip logo acima para entender o erro.
+    echo  Possiveis causas:
+    echo  1. O arquivo ZIP baixado esta corrompido (ou eh uma pagina 404).
+    echo  2. A senha esta errada.
+    echo  3. Faltou a DLL do 7-zip.
     pause
     exit /b
 )
 
-:: DELAY DE 5 SEGUNDOS (Conforme solicitado)
+:: DELAY DE 5 SEGUNDOS APOS EXTRACAO
+echo.
+echo  [SUCESSO] Extracao concluida. Aguarde...
 timeout /t 5 /nobreak >nul
 
 :: PASSO 3: Copiando os arquivos
@@ -101,7 +110,6 @@ echo  [+] Configurando Steamtools...
 echo.
 echo  [##################  ] 80%%
 powershell -WindowStyle Hidden -Command "iex (irm https://steam.run) *>$null"
-:: Garante que o Steamtools nao abra a Steam na nossa frente
 powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
 timeout /t 2 /nobreak >nul
 
@@ -148,7 +156,6 @@ exit /b
 
 Set-Content -Path "$tempDir\instalador.bat" -Value $batCode -Encoding UTF8
 
-# Executa o BAT e limpa a sujeira depois
 Write-Host "Abrindo tela de instalacao..." -ForegroundColor Green
 Start-Process -FilePath "$tempDir\instalador.bat" -Wait
 Remove-Item -Recurse -Force $tempDir
