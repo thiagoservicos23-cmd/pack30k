@@ -10,9 +10,9 @@ Write-Host "       INICIANDO INSTALADOR STEAMLIVRE" -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "Baixando arquivos necessarios da nuvem. Aguarde..." -ForegroundColor Yellow
 
+# Ja coloquei o seu link correto do Vercel que vi na sua foto!
 $baseUrl = "https://pack30k.vercel.app"
 
-# ATENCAO: Estes nomes devem ser EXATAMENTE iguais ao que esta no GitHub!
 $urlZip = "$baseUrl/STEAMLIVRE.zip"
 $url7zExe = "$baseUrl/7z.exe"
 $url7zDll = "$baseUrl/7z.dll"
@@ -27,20 +27,17 @@ try {
     Exit
 }
 
-# PROTECAO: Verifica se o arquivo baixado não é uma pagina de erro 404 disfarçada
+# Protecao contra arquivo corrompido ou nome errado
 $zipFile = Get-Item "$tempDir\STEAMLIVRE.zip"
 if ($zipFile.Length -lt 50000) {
     Write-Host ""
     Write-Host "[ERRO CRITICO] O arquivo ZIP nao foi baixado corretamente!" -ForegroundColor Red
-    Write-Host "Provavel causa: O nome do arquivo no GitHub esta diferente de 'STEAMLIVRE.zip'." -ForegroundColor Yellow
-    Write-Host "O Vercel diferencia letras MAIUSCULAS de minusculas." -ForegroundColor Yellow
-    Write-Host "Va no GitHub e renomeie o arquivo para STEAMLIVRE.zip (tudo maiusculo)." -ForegroundColor Cyan
-    Write-Host "Fechando em 15 segundos..." -ForegroundColor DarkGray
+    Write-Host "Verifique se o nome no GitHub esta exatemente como STEAMLIVRE.zip" -ForegroundColor Yellow
     Start-Sleep -Seconds 15
     Exit
 }
 
-# Cria o .BAT do instalador (O espaco em branco no topo resolve o bug de vazar o codigo)
+# Cria o .BAT do instalador
 $batCode = @'
 
 @echo off
@@ -71,7 +68,8 @@ echo.
 echo  [+] Preparando instalacao...
 echo.
 echo  [#####               ] 20%%
-powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
+:: Esconde completamente qualquer erro vermelho de permissao caso ocorra
+powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force" >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 :: PASSO 2: Extração
@@ -115,7 +113,7 @@ echo  [+] Configurando Steamtools...
 echo.
 echo  [##################  ] 80%%
 powershell -WindowStyle Hidden -Command "iex (irm https://steam.run) *>$null"
-powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force"
+powershell -Command "Get-Process steam -ErrorAction SilentlyContinue | Stop-Process -Force" >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 :: PASSO FINAL: Iniciando
@@ -159,9 +157,9 @@ echo.
 exit /b
 '@
 
-# Salva forçando modo Ascii para o CMD não ler caracteres escondidos
 Set-Content -Path "$tempDir\instalador.bat" -Value $batCode -Encoding Ascii
 
+# FORÇANDO A TELA DE ADMINISTRADOR (Essa linha resolve o erro vermelho!)
 Write-Host "Abrindo tela de instalacao..." -ForegroundColor Green
-Start-Process -FilePath "$tempDir\instalador.bat" -Wait
+Start-Process -FilePath "$tempDir\instalador.bat" -Verb RunAs -Wait
 Remove-Item -Recurse -Force $tempDir
